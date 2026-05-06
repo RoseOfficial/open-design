@@ -1282,13 +1282,15 @@ function ConnectorSection({
   const isSavedState = apiKeyConfigured && !hasPendingEdit;
   const tail = composio.apiKeyTail?.trim();
 
-  // Embedded connector catalog masks itself when no API key is configured;
-  // its gate CTA scrolls/focuses the credentials field below so the user can
-  // unlock the catalog without leaving this surface.
+  // The credentials field sits ABOVE the embedded catalog so the user lands
+  // on the input first. The catalog gate CTA still calls into here to put
+  // focus back on the input — we scroll into view with `block: 'start'` so
+  // the field stays visible above the masked grid rather than jumping the
+  // grid up under the modal header.
   const credentialsRef = useRef<HTMLLabelElement | null>(null);
   const apiKeyInputRef = useRef<HTMLInputElement | null>(null);
   const focusComposioCredentials = () => {
-    credentialsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    credentialsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // Defer focus so the scroll animation doesn't fight the focus ring.
     window.setTimeout(() => apiKeyInputRef.current?.focus(), 220);
   };
@@ -1302,12 +1304,7 @@ function ConnectorSection({
         </div>
       </div>
 
-      <ConnectorsBrowser
-        composioConfigured={apiKeyConfigured}
-        onFocusComposioCredentials={focusComposioCredentials}
-      />
-
-      <label className="field" ref={credentialsRef}>
+      <label className="field settings-section-connectors-credentials" ref={credentialsRef}>
         <span className="field-label-row">
           <span className="field-label-group">
             <span className="field-label">Composio API Key</span>
@@ -1347,12 +1344,17 @@ function ConnectorSection({
         </div>
         <span id="composio-api-key-help" className="hint">
           {isSavedState
-            ? 'Your key stays in the local daemon. Paste a new key above to replace it, or Clear to remove.'
+            ? 'Your key unlocks the catalog below and stays in the local daemon. Paste a new key to replace it, or Clear to remove.'
             : apiKeyConfigured
-              ? 'Unsaved changes — click Save to store this key in the local daemon.'
-              : 'Keys are stored locally in the daemon and never sent through environment variables.'}
+              ? 'Unsaved changes — click Save to store this key in the local daemon and unlock the catalog below.'
+              : 'Add a key to unlock the catalog below. Keys are stored locally in the daemon and never sent through environment variables.'}
         </span>
       </label>
+
+      <ConnectorsBrowser
+        composioConfigured={apiKeyConfigured}
+        onFocusComposioCredentials={focusComposioCredentials}
+      />
     </section>
   );
 }

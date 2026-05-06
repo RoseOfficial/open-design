@@ -23,6 +23,7 @@ import { MEDIA_PROVIDERS } from '../media/models';
 import type { MediaProvider } from '../media/models';
 import { PetSettings } from './pet/PetSettings';
 import { LibrarySection } from './LibrarySection';
+import { ConnectorsBrowser } from './ConnectorsBrowser';
 import {
   applyAppearanceToDocument,
   normalizeAccentColor,
@@ -1092,7 +1093,7 @@ export function SettingsDialog({
           {activeSection === 'media' ? <MediaProvidersSection cfg={cfg} setCfg={setCfg} /> : null}
           {activeSection === 'integrations' ? <IntegrationsSection /> : null}
 
-          {activeSection === 'composio' ? <ComposioSection cfg={cfg} setCfg={setCfg} /> : null}
+          {activeSection === 'composio' ? <ConnectorSection cfg={cfg} setCfg={setCfg} /> : null}
 
           {activeSection === 'orbit' ? (
             <OrbitSection
@@ -1264,7 +1265,7 @@ export function SettingsDialog({
   );
 }
 
-function ComposioSection({
+function ConnectorSection({
   cfg,
   setCfg,
 }: {
@@ -1281,15 +1282,32 @@ function ComposioSection({
   const isSavedState = apiKeyConfigured && !hasPendingEdit;
   const tail = composio.apiKeyTail?.trim();
 
+  // Embedded connector catalog masks itself when no API key is configured;
+  // its gate CTA scrolls/focuses the credentials field below so the user can
+  // unlock the catalog without leaving this surface.
+  const credentialsRef = useRef<HTMLLabelElement | null>(null);
+  const apiKeyInputRef = useRef<HTMLInputElement | null>(null);
+  const focusComposioCredentials = () => {
+    credentialsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Defer focus so the scroll animation doesn't fight the focus ring.
+    window.setTimeout(() => apiKeyInputRef.current?.focus(), 220);
+  };
+
   return (
-    <section className="settings-section">
+    <section className="settings-section settings-section-connectors">
       <div className="section-head">
         <div>
           <h3>Connectors</h3>
           <p className="hint">Manage connector and tool provider settings for this device.</p>
         </div>
       </div>
-      <label className="field">
+
+      <ConnectorsBrowser
+        composioConfigured={apiKeyConfigured}
+        onFocusComposioCredentials={focusComposioCredentials}
+      />
+
+      <label className="field" ref={credentialsRef}>
         <span className="field-label-row">
           <span className="field-label-group">
             <span className="field-label">Composio API Key</span>
@@ -1311,6 +1329,7 @@ function ComposioSection({
         </span>
         <div className="field-row">
           <input
+            ref={apiKeyInputRef}
             type="password"
             value={composio.apiKey ?? ''}
             placeholder={isSavedState ? 'Paste a new key to replace the saved one' : 'Paste Composio API key'}

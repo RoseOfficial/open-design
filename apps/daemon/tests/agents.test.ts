@@ -44,7 +44,9 @@ const originalAgentHome = process.env.OD_AGENT_HOME;
 const originalDaemonUrl = process.env.OD_DAEMON_URL;
 const originalToolToken = process.env.OD_TOOL_TOKEN;
 const originalNpmConfigPrefix = process.env.NPM_CONFIG_PREFIX;
+const originalPathExt = process.env.PATHEXT;
 const originalFetch = globalThis.fetch;
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform');
 
 afterEach(() => {
   if (originalDisablePlugins == null) {
@@ -78,8 +80,24 @@ afterEach(() => {
   } else {
     process.env.NPM_CONFIG_PREFIX = originalNpmConfigPrefix;
   }
+  if (originalPathExt == null) {
+    delete process.env.PATHEXT;
+  } else {
+    process.env.PATHEXT = originalPathExt;
+  }
   globalThis.fetch = originalFetch;
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(process, 'platform', originalPlatformDescriptor);
+  }
 });
+
+function withPlatform(platform, run) {
+  Object.defineProperty(process, 'platform', {
+    configurable: true,
+    value: platform,
+  });
+  return run();
+}
 
 test('AGENT_DEFS ids are unique', () => {
   const ids = AGENT_DEFS.map((a) => a.id);
@@ -1641,6 +1659,52 @@ test('resolveAgentExecutable ignores configured binary overrides that are not ex
         null,
       );
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolveAgentExecutable ignores Windows CODEX_BIN overrides without executable PATHEXT extension', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'od-agent-bin-win-invalid-'));
+  try {
+    const invalidOverride = join(dir, 'codex-custom.txt');
+    const fallback = join(dir, 'codex.CMD');
+    writeFileSync(invalidOverride, '@echo off\r\nexit /b 0\r\n');
+    writeFileSync(fallback, '@echo off\r\nexit /b 0\r\n');
+    process.env.PATH = dir;
+    process.env.PATHEXT = '.EXE;.CMD;.BAT';
+    process.env.OD_AGENT_HOME = dir;
+
+    const resolved = withPlatform('win32', () =>
+      resolveAgentExecutable(
+        { id: 'codex', bin: 'codex' },
+        { CODEX_BIN: invalidOverride },
+      ),
+    );
+
+    assert.equal(resolved, fallback);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolveAgentExecutable accepts Windows CODEX_BIN overrides with executable PATHEXT extension', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'od-agent-bin-win-valid-'));
+  try {
+    const configured = join(dir, 'codex-custom.CMD');
+    writeFileSync(configured, '@echo off\r\nexit /b 0\r\n');
+    process.env.PATH = '';
+    process.env.PATHEXT = '.EXE;.CMD;.BAT';
+    process.env.OD_AGENT_HOME = dir;
+
+    const resolved = withPlatform('win32', () =>
+      resolveAgentExecutable(
+        { id: 'codex', bin: 'codex' },
+        { CODEX_BIN: configured },
+      ),
+    );
+
+    assert.equal(resolved, configured);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

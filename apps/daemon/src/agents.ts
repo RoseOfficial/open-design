@@ -900,6 +900,16 @@ export function resolveOnPath(bin) {
   return null;
 }
 
+function looksExecutableOnWindows(filePath) {
+  const ext = path.extname(filePath).trim().toUpperCase();
+  if (!ext) return false;
+  const executableExts = (process.env.PATHEXT || '.EXE;.CMD;.BAT')
+    .split(';')
+    .map((value) => value.trim().toUpperCase())
+    .filter(Boolean);
+  return executableExts.includes(ext);
+}
+
 // Resolve the first available binary for an agent definition. Tries
 // `def.bin` first, then walks `def.fallbackBins` in order. Used for
 // agents whose forks ship under a different binary name but speak the
@@ -914,7 +924,11 @@ function configuredExecutableOverride(def, configuredEnv = {}) {
   if (!path.isAbsolute(expanded)) return null;
   try {
     if (!statSync(expanded).isFile()) return null;
-    if (process.platform !== 'win32') accessSync(expanded, constants.X_OK);
+    if (process.platform === 'win32') {
+      if (!looksExecutableOnWindows(expanded)) return null;
+    } else {
+      accessSync(expanded, constants.X_OK);
+    }
     return expanded;
   } catch {
     return null;

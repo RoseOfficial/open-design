@@ -85,16 +85,14 @@ const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
   process.stdout.write(agentId + '-e2e 0.0.0\\n');
-  process.exit(0);
-}
-if (agentId === 'claude' && args[0] === '-p' && args.includes('--help')) {
+  process.exitCode = 0;
+} else if (agentId === 'claude' && args[0] === '-p' && args.includes('--help')) {
   process.stdout.write('--add-dir --include-partial-messages\\n');
-  process.exit(0);
-}
-if ((agentId === 'opencode' || agentId === 'cursor-agent') && args[0] === 'models') {
+  process.exitCode = 0;
+} else if ((agentId === 'opencode' || agentId === 'cursor-agent') && args[0] === 'models') {
   process.stdout.write('fake/default\\n');
-  process.exit(0);
-}
+  process.exitCode = 0;
+} else {
 
 let prompt = '';
 let emitted = false;
@@ -127,7 +125,7 @@ function emitRun(promptText) {
   const html = '<!doctype html><html><body><main><h1>' + heading + '</h1><p>' + text + '</p></main></body></html>';
   const artifact = '<artifact identifier="' + identifier + '" type="text/html" title="' + heading + '">' + html + '</artifact>';
   emitSuccess(artifact, isChunked);
-  setImmediate(() => process.exit(0));
+  process.exitCode = 0;
 }
 
 function writeJson(value) {
@@ -195,20 +193,21 @@ function emitFailure() {
       writeJson({ type: 'thread.started' });
       writeJson({ type: 'turn.started' });
       writeJson({ type: 'turn.failed', error: { message: 'intentional fake codex failure' } });
-      process.exit(0);
+      process.exitCode = 0;
       return;
     case 'opencode':
       writeJson({ type: 'error', error: { data: { message: 'intentional fake opencode failure' } } });
-      process.exit(0);
+      process.exitCode = 0;
       return;
     case 'qoder':
       writeJson({ type: 'assistant', message: { content: [] }, error: { message: 'intentional fake qoder failure' } });
-      process.exit(0);
+      process.exitCode = 0;
       return;
     default:
       process.stderr.write('intentional fake ' + agentId + ' failure\\n');
-      process.exit(1);
+      process.exitCode = 1;
   }
+}
 }
 `;
 }

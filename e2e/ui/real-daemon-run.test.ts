@@ -140,6 +140,7 @@ test('real daemon run supports fake non-Codex runtime protocols', async ({ page 
       await configureFakeAgent(page, agentId);
       const projectId = `fake-runtime-${agentId}-${Date.now()}`.replace(/[^A-Za-z0-9._-]/g, '-');
       const { conversationId } = await createProjectViaApi(page, projectId, `Fake ${agentId} runtime smoke`);
+      const expectedArtifact = `fake-agent-runtime-${agentId}`;
 
       expect(conversationId).toBeTruthy();
       await startRunAndWaitForSuccess(page, {
@@ -147,6 +148,7 @@ test('real daemon run supports fake non-Codex runtime protocols', async ({ page 
         projectId,
         conversationId,
         message: `Fake runtime smoke for ${agentId}`,
+        expectedOutput: expectedArtifact,
       });
     });
   }
@@ -245,7 +247,13 @@ async function resetDaemonAppConfig(page: Page) {
 
 async function startRunAndWaitForSuccess(
   page: Page,
-  options: { agentId: FakeAgentId; projectId: string; conversationId: string; message: string },
+  options: {
+    agentId: FakeAgentId;
+    projectId: string;
+    conversationId: string;
+    message: string;
+    expectedOutput?: string;
+  },
 ) {
   const requestId = `fake-${options.agentId}-${Date.now()}`;
   const response = await page.request.post('/api/runs', {
@@ -273,6 +281,12 @@ async function startRunAndWaitForSuccess(
       return body.status;
     }, { timeout: 20_000 })
     .toBe('succeeded');
+
+  if (options.expectedOutput) {
+    const events = await page.request.get(`/api/runs/${runId}/events`);
+    expect(events.ok()).toBeTruthy();
+    await expect(events.text()).resolves.toContain(options.expectedOutput);
+  }
 }
 
 async function expectProjectFileToContain(

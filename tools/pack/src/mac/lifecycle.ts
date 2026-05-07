@@ -31,6 +31,7 @@ import { desktopIdentityPath, desktopLogPath, macAppExecutablePath, resolveMacPa
 import type { DesktopRootIdentityFallback, DesktopRootIdentityMarker, MacCleanupResult, MacInspectResult, MacInstallResult, MacStartResult, MacStartSource, MacStopResult, MacUninstallResult } from "./types.js";
 
 const execFileAsync = promisify(execFile);
+const PACKAGED_CONFIG_PATH_ENV = "OD_PACKAGED_CONFIG_PATH";
 
 function desktopStamp(config: ToolPackConfig): SidecarStamp {
   return {
@@ -301,8 +302,26 @@ export async function installPackedMacDmg(config: ToolPackConfig): Promise<MacIn
   };
 }
 
+export async function prepareMacLaunchConfig(config: ToolPackConfig, appPath: string): Promise<string | null> {
+  if (!config.portable) return null;
+
+  const raw = JSON.parse(
+    await readFile(join(appPath, "Contents", "Resources", "open-design-config.json"), "utf8"),
+  ) as Record<string, unknown>;
+
+  const launchConfigPath = join(config.roots.runtime.namespaceRoot, "open-design-config.json");
+  await mkdir(config.roots.runtime.namespaceRoot, { recursive: true });
+  await writeFile(
+    launchConfigPath,
+    `${JSON.stringify({ ...raw, namespaceBaseRoot: config.roots.runtime.namespaceBaseRoot }, null, 2)}\n`,
+    "utf8",
+  );
+  return launchConfigPath;
+}
+
 export async function startPackedMacApp(config: ToolPackConfig): Promise<MacStartResult> {
   const target = await resolvePackedMacStartTarget(config);
+  const launchConfigPath = await prepareMacLaunchConfig(config, target.appPath);
   const stamp = desktopStamp(config);
   const logPath = desktopLogPath(config);
   await mkdir(dirname(logPath), { recursive: true });
@@ -318,6 +337,7 @@ export async function startPackedMacApp(config: ToolPackConfig): Promise<MacStar
       extraEnv: {
         ...process.env,
         [DESKTOP_LOG_ECHO_ENV]: "0",
+        ...(launchConfigPath == null ? {} : { [PACKAGED_CONFIG_PATH_ENV]: launchConfigPath }),
       },
       stamp,
     }),

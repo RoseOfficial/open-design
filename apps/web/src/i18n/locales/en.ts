@@ -1520,6 +1520,7 @@ export const en: Dict = {
   'sketch.save': 'Save sketch',
   'sketch.cancel': 'Cancel',
   'sketch.saving': 'Saving…',
+  'sketch.saved': 'Saved',
   'sketch.tooltipDirty': 'Unsaved changes',
   'sketch.tooltipClean': 'Saved',
   'fileViewer.empty': 'Select a file to view.',

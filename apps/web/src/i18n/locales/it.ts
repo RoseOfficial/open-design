@@ -844,6 +844,7 @@ export const it: Dict = {
   'sketch.save': 'Salva schizzo',
   'sketch.cancel': 'Annulla',
   'sketch.saving': 'Salvataggio…',
+  'sketch.saved': 'Salvato',
   'sketch.tooltipDirty': 'Modifiche non salvate',
   'sketch.tooltipClean': 'Salvato',
   'fileViewer.empty': 'Seleziona un file da visualizzare.',

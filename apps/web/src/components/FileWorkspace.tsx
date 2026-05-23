@@ -724,7 +724,11 @@ export function FileWorkspace({
       entry.discardRawItemsOnSave ? [] : entry.rawItems,
       entry.items,
     );
+    const startedAt = Date.now();
     const file = await writeProjectTextFile(projectId, name, JSON.stringify(doc, null, 2));
+    const elapsed = Date.now() - startedAt;
+    // Ensures saving UI shows so the button does not flicker
+    if (elapsed < 500) await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
     if (file) {
       setSketches((curr) => ({
         ...curr,
@@ -745,8 +749,10 @@ export function FileWorkspace({
       });
       setActiveTab(name);
       await onRefreshFiles();
+      return true;
     } else {
       setSketches((curr) => ({ ...curr, [name]: { ...curr[name]!, saving: false } }));
+      return false;
     }
   }
 
